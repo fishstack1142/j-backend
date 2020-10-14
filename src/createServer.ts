@@ -1,57 +1,68 @@
-import { ApolloServer, gql } from 'apollo-server-express'
-import { UserModel } from './entities/User'
+// import { ApolloServer, gql } from 'apollo-server-express'
+import { ApolloServer } from 'apollo-server-express'
+import { buildSchema } from 'type-graphql'
 
-const typeDefs = gql`
-type User {
-    id: String!
-    username: String!
-    email: String!
-    password: String!
-}
+import { AuthResolvers } from './resolvers/AuthResolvers'
 
-type Query {
-    users: [User]
-}
+// import { UserModel } from './entities/User'
 
-type Mutation {
-    createUser(username: String!, email: String!, password: String!): User
-}
-`
+// const typeDefs = gql`
+// type User {
+//     id: String!
+//     username: String!
+//     email: String!
+//     password: String!
+// }
 
-interface InputArgs {
-    username: string
-    email: string
-    password: string
-}
+// type Query {
+//     users: [User]
+// }
 
-const resolvers = {
-    Query: {
-        users: () => UserModel.find()
-    },
+// type Mutation {
+//     createUser(username: String!, email: String!, password: String!): User
+// }
+// `
 
-    Mutation: {
-        createUser: async (_: any, args: InputArgs) => {
-            const { username, email, password } = args
+// interface InputArgs {
+//     username: string
+//     email: string
+//     password: string
+// }
 
-            try {
-                const newUser = await UserModel.create({
-                    username,
-                    email,
-                    password
-                })
+// const resolvers = {
+//     Query: {
+//         users: () => UserModel.find()
+//     },
 
-                return newUser
-            } catch (error) {
-                console.log(error)
-                throw error
-            }
+//     Mutation: {
+//         createUser: async (_: any, args: InputArgs) => {
+//             const { username, email, password } = args
 
-        }
-    }
-}
+//             try {
+//                 const newUser = await UserModel.create({
+//                     username,
+//                     email,
+//                     password
+//                 })
+
+//                 return newUser
+//             } catch (error) {
+//                 console.log(error)
+//                 throw error
+//             }
+
+//         }
+//     }
+// }
 
 
-export default () => {
+export default async () => {
 
-    return new ApolloServer({ typeDefs, resolvers })
+    const schema = await buildSchema({
+        resolvers: [AuthResolvers],
+        emitSchemaFile: {path: './src/schema.graphql'},
+        validate: false
+    })
+
+    return new ApolloServer({ schema })
 }

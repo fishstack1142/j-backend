@@ -20,7 +20,7 @@ import createServer from './createServer'
 
     const app = express()
 
-    const server = createServer()
+    const server = await createServer()
 
     server.applyMiddleware({ app })
 
