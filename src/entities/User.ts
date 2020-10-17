@@ -1,7 +1,8 @@
 import { getModelForClass, prop } from '@typegoose/typegoose'
 import { ObjectType, Field, ID } from 'type-graphql'
+import { RoleOptions } from '../types'
 
-@ObjectType({ description: 'Model User' })
+@ObjectType()
 export class User {
 
     @Field(() => ID)
@@ -16,7 +17,35 @@ export class User {
     email: string
 
     @prop({required: true})
-    password: string
+    password: string;
+
+
+    @prop({ default: 0 })
+    public tokenVersion?: number
+
+    @prop()
+    resetPasswordToken?: string
+
+    @prop()
+    resetPasswordTokenExpiry?: number
+
+    @prop()
+    facebookId?: string
+
+    @prop()
+    googleId?: string
+
+    @Field(() => [String])
+    @prop({
+      items: String,
+      enum: RoleOptions,
+      default: [RoleOptions.client],
+    })
+    roles?: RoleOptions[]
+  
+    @Field()
+    @prop({ default: () => Date.now() + 60 * 60 * 1000 * 7 })
+    createdAt?: Date
 }
 
 export const UserModel = getModelForClass(User)

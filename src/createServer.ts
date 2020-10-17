@@ -64,5 +64,7 @@ export default async () => {
         validate: false
     })
 
-    return new ApolloServer({ schema })
+    return new ApolloServer({ schema, context: ({ req, res }) => {
+        return {req, res}
+    } })
 }
