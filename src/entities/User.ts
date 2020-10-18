@@ -37,7 +37,7 @@ export class User {
 
     @Field(() => [String])
     @prop({
-      items: String,
+      type: String,
       enum: RoleOptions,
       default: [RoleOptions.client],
     })

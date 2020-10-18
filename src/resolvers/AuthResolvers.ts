@@ -22,7 +22,7 @@ export class AuthResolvers {
 
 
 
-    @Mutation(() => User)
+    @Mutation(() => User, {nullable: true})
     async signUp(
         @Arg('username')
         username: string,
@@ -35,23 +35,28 @@ export class AuthResolvers {
 
         @Ctx()
         { res }: { req: Request, res: Response }
-    ) {
+    ): Promise<User | null> {
 
         try {
 
             if (!username) throw new Error('Username is required.')
+            if (!email) throw new Error('Email is required')
+            if (!password) throw new Error('Password is required')
+
+            const user = await UserModel.findOne({ email }).exec()
+
+            if (user) throw new Error('Email is already in use, please sign in')
+
             const isUsernameValid = validateUsername(username)
 
             if (!isUsernameValid) throw new Error('username length must be 3 - 60 characters')
 
-            if (!email) throw new Error('Email is required')
 
             //use express validator later
             const isEmailValid = validateEmail(email)
 
             if (!isEmailValid) throw new Error('Email is invalid')
 
-            if (!password) throw new Error('Password is required')
             const isPasswordValid = validatePassword(password)
 
             if (!isPasswordValid) throw new Error('password length must be 6 - 50 characters')
@@ -73,6 +78,43 @@ export class AuthResolvers {
             sendToken(res, token)
 
             return newUser
+        } catch (error) {
+            console.log(error)
+            throw error
+        }
+    }
+
+    @Mutation(() => User, {nullable: true})
+    async signIn(
+        @Arg('email')
+        email: string,
+
+        @Arg('password')
+        password: string,
+
+        @Ctx()
+        { res }: { req: Request, res: Response }
+    ): Promise<User | null> {
+
+        try {
+
+            if (!email) throw new Error('Email is required')
+            if (!password) throw new Error('Password is required')
+
+            const user = await UserModel.findOne({ email }).then(u => u)
+
+            if (!user) throw new Error('User not found')
+
+            const isPasswordValid = await bcrypt.compare(password, user.password)
+
+            if (!isPasswordValid) throw new Error('Email or password is wrong')
+
+            const token = createToken(user.id, user.tokenVersion = 2);
+
+            console.log(token)
+            sendToken(res, token)
+
+            return user
         } catch (error) {
             console.log(error)
             throw error
