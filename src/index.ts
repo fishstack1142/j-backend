@@ -1,5 +1,7 @@
 import express from 'express'
 import mongoose from "mongoose";
+import cookieParser from 'cookie-parser';
+
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -19,13 +21,14 @@ import createServer from './createServer'
     );
 
     const app = express()
+    app.use(cookieParser())
 
     const server = await createServer()
 
     server.applyMiddleware({ app })
 
-    app.listen({ port: 5000 }, () =>
-    console.log(`Server is running at port 5000${server.graphqlPath}`))
+    app.listen({ port: process.env.PORT }, () =>
+    console.log(`Server is running at port ${process.env.PORT}${server.graphqlPath}`))
 
 }())
 

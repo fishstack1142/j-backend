@@ -5,6 +5,8 @@ import { createToken, sendToken } from '../utils/tokenHandler'
 
 import bcrypt from 'bcryptjs'
 import { Request, Response } from 'express'
+import { AppContext } from '../types'
+import { isAuthenticated } from '../utils/authHandler'
 
 @Resolver()
 export class AuthResolvers {
@@ -16,6 +18,19 @@ export class AuthResolvers {
             return UserModel.find()
         } catch (error) {
             console.log(error)
+            throw error
+        }
+    }
+
+    @Query(() => User, { nullable: true })
+    async me(@Ctx() { req }: AppContext): Promise<User | null> {
+        try {
+            if (!req.userId) throw new Error('Please log in to proceed')
+
+            const user = await isAuthenticated(req.userId, req.tokenVersion)
+            
+            return user
+        } catch (error) {
             throw error
         }
     }
@@ -72,7 +87,7 @@ export class AuthResolvers {
 
             let userSaved = await newUser.save()
 
-            const token = createToken(userSaved.id, 0);
+            const token = createToken(userSaved.id, userSaved.tokenVersion!);
 
             console.log(token)
             sendToken(res, token)
@@ -109,7 +124,7 @@ export class AuthResolvers {
 
             if (!isPasswordValid) throw new Error('Email or password is wrong')
 
-            const token = createToken(user.id, user.tokenVersion = 2);
+            const token = createToken(user.id, user.tokenVersion!);
 
             console.log(token)
             sendToken(res, token)
