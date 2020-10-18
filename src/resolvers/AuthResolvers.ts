@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Arg, Ctx } from 'type-graphql'
+import { Resolver, Query, Mutation, Arg, Ctx, ObjectType, Field } from 'type-graphql'
 import { User, UserModel } from '../entities/User'
 import { validateEmail, validatePassword, validateUsername } from '../utils/validate'
 import { createToken, sendToken } from '../utils/tokenHandler'
@@ -7,6 +7,12 @@ import bcrypt from 'bcryptjs'
 import { Request, Response } from 'express'
 import { AppContext } from '../types'
 import { isAuthenticated } from '../utils/authHandler'
+
+@ObjectType()
+export class ResponseMessage {
+    @Field()
+    message: string
+}
 
 @Resolver()
 export class AuthResolvers {
@@ -28,7 +34,7 @@ export class AuthResolvers {
             if (!req.userId) throw new Error('Please log in to proceed')
 
             const user = await isAuthenticated(req.userId, req.tokenVersion)
-            
+
             return user
         } catch (error) {
             throw error
@@ -37,7 +43,7 @@ export class AuthResolvers {
 
 
 
-    @Mutation(() => User, {nullable: true})
+    @Mutation(() => User, { nullable: true })
     async signUp(
         @Arg('username')
         username: string,
@@ -99,7 +105,7 @@ export class AuthResolvers {
         }
     }
 
-    @Mutation(() => User, {nullable: true})
+    @Mutation(() => User, { nullable: true })
     async signIn(
         @Arg('email')
         email: string,
@@ -130,6 +136,30 @@ export class AuthResolvers {
             sendToken(res, token)
 
             return user
+        } catch (error) {
+            console.log(error)
+            throw error
+        }
+    }
+
+    @Mutation(() => ResponseMessage, { nullable: true })
+    async signOut(
+
+        @Ctx()
+        { req, res }: AppContext): Promise<ResponseMessage | null> {
+
+        try {
+
+            const user = await UserModel.findById(req.userId).then(u => u)
+
+            if (!user) return { message: 'user not found' }
+
+            user.tokenVersion = user.tokenVersion! + 1
+            await user.save()
+
+            res.clearCookie(process.env.COOKIE_NAME!)
+
+            return { message: 'logged out' }
         } catch (error) {
             console.log(error)
             throw error
