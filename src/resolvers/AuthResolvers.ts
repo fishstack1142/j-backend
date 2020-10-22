@@ -7,6 +7,10 @@ import bcrypt from 'bcryptjs'
 import { Request, Response } from 'express'
 import { AppContext } from '../types'
 import { isAuthenticated } from '../utils/authHandler'
+import { randomBytes } from 'crypto'
+
+import Sendgrid, { MailDataRequired } from '@sendgrid/mail'
+Sendgrid.setApiKey(process.env.SENDGRID_API_KEY!)
 
 @ObjectType()
 export class ResponseMessage {
@@ -164,6 +168,40 @@ export class AuthResolvers {
             console.log(error)
             throw error
         }
+    }
+
+
+    @Mutation(() => ResponseMessage, { nullable: true })
+    async requestResetPassword(@Arg('email') email: string): Promise<ResponseMessage | null> {
+
+            if (!email) throw new Error('Email is required.')
+
+            const user = await UserModel.findOne({ email }).exec()
+
+            if (!user) throw new Error('Email not found')
+
+            const resetPasswordToken = randomBytes(16).toString('hex')
+            const resetPasswordTokenExpiry = Date.now() + 1000 * 60 * 30
+
+            const updatedUser = await UserModel.findOneAndUpdate({ email }, { resetPasswordToken, resetPasswordTokenExpiry }, { new: true }).exec()
+
+            if (!updatedUser) throw new Error('error occurred')
+
+            const message: MailDataRequired = {
+                to: user.email,
+                from: `${process.env.SENDGRID_EMAIL}`,
+                subject: "Reset password as you requested",
+                html: `<div>
+                      <p>check the link below</p>\n\n
+                      <a href='${process.env.SENDGRID_RESET_URL}?resetToken=${resetPasswordToken}' target='blank'>click here</a>
+                </div>`,
+            }
+
+            const response = await Sendgrid.send(message)
+
+            if (!response || response[0]?.statusCode !== 202) throw new Error("can't proceed")
+
+            return { message: 'check your email to reset password' }
     }
 
 }
