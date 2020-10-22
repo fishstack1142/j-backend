@@ -5,7 +5,7 @@ import { createToken, sendToken } from '../utils/tokenHandler'
 
 import bcrypt from 'bcryptjs'
 import { Request, Response } from 'express'
-import { AppContext } from '../types'
+import { AppContext, RoleOptions } from '../types'
 import { isAuthenticated } from '../utils/authHandler'
 import { randomBytes } from 'crypto'
 
@@ -88,7 +88,7 @@ export class AuthResolvers {
 
             const hashedPassword = await bcrypt.hash(password, 10)
 
-            const newUser = await UserModel.create({
+            const newUser = await UserModel.create<Pick<User, 'username' | 'email' | 'password'>>({
                 username,
                 email,
                 password: hashedPassword
@@ -230,6 +230,37 @@ export class AuthResolvers {
             if (!updatedUser) throw new Error('error occurred')
 
             return { message: 'reset password is done' }
+    }
+
+
+    @Mutation(() => User, {nullable: true})
+    async updateRole(
+        @Arg('newRole', () => [String]) newRole: RoleOptions[],
+        @Arg('userId') userId: string,
+        @Ctx() {req}: AppContext
+    ) {
+        try {
+            
+            if(!req.userId) throw new Error('Please login')
+            const admin = await isAuthenticated(req.userId, req.tokenVersion)
+
+            const isSuperAdmin = admin.roles?.includes(RoleOptions.superAdmin)
+
+            if (!isSuperAdmin) throw new Error('Not authorized')
+
+            const user = await UserModel.findById(userId).exec()
+
+            if(!user) throw new Error('No User')
+
+            user.roles = newRole
+
+            user.save()
+
+            return user
+
+        } catch (error) {
+            throw error
+        }
     }
 
 }
