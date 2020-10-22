@@ -204,4 +204,32 @@ export class AuthResolvers {
             return { message: 'check your email to reset password' }
     }
 
+    @Mutation(() => ResponseMessage, { nullable: true })
+    async resetPassword(
+        @Arg('password') password: string,
+        @Arg('token') token:string
+        ): Promise<ResponseMessage | null> {
+
+            if (!password) throw new Error('Password is required.')
+            if (!token) throw new Error('Wrong method')
+
+            const user = await UserModel.findOne({ resetPasswordToken: token }).exec()
+
+            if (!user) throw new Error('User not found')
+
+            if (!user.resetPasswordTokenExpiry) throw new Error("Can't process")
+
+            const isTokenValid = Date.now() <= user.resetPasswordTokenExpiry
+
+            if(!isTokenValid) throw new Error('Sorry, ')
+
+            const hashedPassword = await bcrypt.hash(password, 10)
+            
+            const updatedUser = await UserModel.findOneAndUpdate({ email: user.email }, { password: hashedPassword, resetPasswordToken: undefined, resetPasswordTokenExpiry: undefined }, { new: true }).exec()
+
+            if (!updatedUser) throw new Error('error occurred')
+
+            return { message: 'reset password is done' }
+    }
+
 }
