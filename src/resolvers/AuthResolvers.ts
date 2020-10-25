@@ -174,74 +174,74 @@ export class AuthResolvers {
     @Mutation(() => ResponseMessage, { nullable: true })
     async requestResetPassword(@Arg('email') email: string): Promise<ResponseMessage | null> {
 
-            if (!email) throw new Error('Email is required.')
+        if (!email) throw new Error('Email is required.')
 
-            const user = await UserModel.findOne({ email }).exec()
+        const user = await UserModel.findOne({ email }).exec()
 
-            if (!user) throw new Error('Email not found')
+        if (!user) throw new Error('Email not found')
 
-            const resetPasswordToken = randomBytes(16).toString('hex')
-            const resetPasswordTokenExpiry = Date.now() + 1000 * 60 * 30
+        const resetPasswordToken = randomBytes(16).toString('hex')
+        const resetPasswordTokenExpiry = Date.now() + 1000 * 60 * 30
 
-            const updatedUser = await UserModel.findOneAndUpdate({ email }, { resetPasswordToken, resetPasswordTokenExpiry }, { new: true }).exec()
+        const updatedUser = await UserModel.findOneAndUpdate({ email }, { resetPasswordToken, resetPasswordTokenExpiry }, { new: true }).exec()
 
-            if (!updatedUser) throw new Error('error occurred')
+        if (!updatedUser) throw new Error('error occurred')
 
-            const message: MailDataRequired = {
-                to: user.email,
-                from: `${process.env.SENDGRID_EMAIL}`,
-                subject: "Reset password as you requested",
-                html: `<div>
+        const message: MailDataRequired = {
+            to: user.email,
+            from: `${process.env.SENDGRID_EMAIL}`,
+            subject: "Reset password as you requested",
+            html: `<div>
                       <p>check the link below</p>\n\n
                       <a href='${process.env.SENDGRID_RESET_URL}?resetToken=${resetPasswordToken}' target='blank'>click here</a>
                 </div>`,
-            }
+        }
 
-            const response = await Sendgrid.send(message)
+        const response = await Sendgrid.send(message)
 
-            if (!response || response[0]?.statusCode !== 202) throw new Error("can't proceed")
+        if (!response || response[0]?.statusCode !== 202) throw new Error("can't proceed")
 
-            return { message: 'check your email to reset password' }
+        return { message: 'check your email to reset password' }
     }
 
     @Mutation(() => ResponseMessage, { nullable: true })
     async resetPassword(
         @Arg('password') password: string,
-        @Arg('token') token:string
-        ): Promise<ResponseMessage | null> {
+        @Arg('token') token: string
+    ): Promise<ResponseMessage | null> {
 
-            if (!password) throw new Error('Password is required.')
-            if (!token) throw new Error('Wrong method')
+        if (!password) throw new Error('Password is required.')
+        if (!token) throw new Error('Wrong method')
 
-            const user = await UserModel.findOne({ resetPasswordToken: token }).exec()
+        const user = await UserModel.findOne({ resetPasswordToken: token }).exec()
 
-            if (!user) throw new Error('User not found')
+        if (!user) throw new Error('User not found')
 
-            if (!user.resetPasswordTokenExpiry) throw new Error("Can't process")
+        if (!user.resetPasswordTokenExpiry) throw new Error("Can't process")
 
-            const isTokenValid = Date.now() <= user.resetPasswordTokenExpiry
+        const isTokenValid = Date.now() <= user.resetPasswordTokenExpiry
 
-            if(!isTokenValid) throw new Error('Sorry, ')
+        if (!isTokenValid) throw new Error('Sorry, ')
 
-            const hashedPassword = await bcrypt.hash(password, 10)
-            
-            const updatedUser = await UserModel.findOneAndUpdate({ email: user.email }, { password: hashedPassword, resetPasswordToken: undefined, resetPasswordTokenExpiry: undefined }, { new: true }).exec()
+        const hashedPassword = await bcrypt.hash(password, 10)
 
-            if (!updatedUser) throw new Error('error occurred')
+        const updatedUser = await UserModel.findOneAndUpdate({ email: user.email }, { password: hashedPassword, resetPasswordToken: undefined, resetPasswordTokenExpiry: undefined }, { new: true }).exec()
 
-            return { message: 'reset password is done' }
+        if (!updatedUser) throw new Error('error occurred')
+
+        return { message: 'reset password is done' }
     }
 
 
-    @Mutation(() => User, {nullable: true})
+    @Mutation(() => User, { nullable: true })
     async updateRole(
         @Arg('newRole', () => [String]) newRole: RoleOptions[],
         @Arg('userId') userId: string,
-        @Ctx() {req}: AppContext
-    ) {
+        @Ctx() { req }: AppContext
+    ): Promise<User | null> {
         try {
-            
-            if(!req.userId) throw new Error('Please login')
+
+            if (!req.userId) throw new Error('Please login')
             const admin = await isAuthenticated(req.userId, req.tokenVersion)
 
             const isSuperAdmin = admin.roles?.includes(RoleOptions.superAdmin)
@@ -250,7 +250,7 @@ export class AuthResolvers {
 
             const user = await UserModel.findById(userId).exec()
 
-            if(!user) throw new Error('No User')
+            if (!user) throw new Error('No User')
 
             user.roles = newRole
 
@@ -261,6 +261,36 @@ export class AuthResolvers {
         } catch (error) {
             throw error
         }
+    }
+
+    @Mutation(() => ResponseMessage, { nullable: true }) async deleteUser(
+        @Arg('userId')
+        userId: string,
+        @Ctx() { req }: AppContext
+
+    ): Promise<ResponseMessage | null> {
+
+        try {
+
+            if (!req.userId) throw new Error('Please login')
+            const admin = await isAuthenticated(req.userId, req.tokenVersion)
+
+            const isSuperAdmin = admin.roles?.includes(RoleOptions.superAdmin)
+
+            if (!isSuperAdmin) throw new Error('Not authorized')
+
+            const user = await UserModel.findByIdAndDelete(userId).exec()
+
+            console.log('user ==>', user)
+
+            if (!user) throw new Error('No User')
+
+            return { message: `User : ${userId} done deleted` }
+
+        } catch (error) {
+            throw error
+        }
+
     }
 
 }
