@@ -22,9 +22,16 @@ export class ResponseMessage {
 export class AuthResolvers {
 
     @Query(() => [User], { nullable: 'items' }) //for nullable
-    async users(): Promise<User[] | null> {
+    async users(@Ctx() { req }: AppContext): Promise<User[] | null> {
 
         try {
+
+            const user = await isAuthenticated(req.userId!, req.tokenVersion)
+
+            const isAuthorized = user.roles?.includes(RoleOptions.superAdmin) || user.roles?.includes(RoleOptions.admin)
+
+            if (!isAuthorized) throw new Error('No Authorization...')
+
             return UserModel.find()
         } catch (error) {
             console.log(error)
