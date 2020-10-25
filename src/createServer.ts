@@ -3,8 +3,9 @@ import { ApolloServer } from 'apollo-server-express'
 import { buildSchema } from 'type-graphql'
 
 import { AuthResolvers } from './resolvers/AuthResolvers'
-import { verifyToken } from './utils/tokenHandler'
+import { createToken, sendToken, verifyToken } from './utils/tokenHandler'
 import { AppContext } from './types'
+import { UserModel } from './entities/User'
 
 // import { UserModel } from './entities/User'
 
@@ -67,7 +68,7 @@ export default async () => {
     })
 
     return new ApolloServer({
-        schema, context: ({ req, res }: AppContext) => {
+        schema, context: async ({ req, res }: AppContext) => {
             // console.log('cookie===>', req.cookies)
             const token = req.cookies[process.env.COOKIE_NAME!]
 
@@ -83,6 +84,26 @@ export default async () => {
                     if (decodedToken) {
                         req.userId = decodedToken.userId
                         req.tokenVersion = decodedToken.tokenVersion
+
+                        if (Date.now() / 1000 - decodedToken.lat > 6 * 60 * 60) {
+                            const user = await UserModel.findById(req.userId).exec()
+
+                            if (user?.tokenVersion === req.tokenVersion) {
+
+                                user.tokenVersion = user.tokenVersion + 1;
+
+                                const updatedUser = await user.save()
+
+                                if (updatedUser) {
+                                    const token = createToken(user.id, updatedUser.tokenVersion!)
+
+                                    req.tokenVersion = updatedUser.tokenVersion
+
+                                    sendToken(res, token)
+                                }
+                            }
+                        }
+
                     }
 
                 } catch (error) {
